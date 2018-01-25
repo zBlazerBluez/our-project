@@ -87,7 +87,7 @@ if __name__ == '__main__':
     NUM_EPISODE = 500
     MAX_FRAME = 200
 
-    env = gym.make('CartPole-v0')
+    env = gym.make('CartPole-v0')		
     agent = CartPoleAgentKnn(env.action_space)
     reward = 0
     done = False
