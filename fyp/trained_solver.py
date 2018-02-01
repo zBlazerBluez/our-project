@@ -1,4 +1,6 @@
 from environment import *
+from keras.models import load_model
+import numpy as np
 
 if __name__ == '__main__':
     NUM_EPISODE = 3
@@ -10,12 +12,15 @@ if __name__ == '__main__':
     running_reward = 0
     for i_episode in range(NUM_EPISODE):
         ob = env.reset()
+        ob = np.reshape(ob, [1, 34])
         sum_reward = 0
         for i_frame in range(MAX_FRAME):
             print('frame %d immidiate reward %d sum_reward %d' %(i_frame, reward, sum_reward))
             env.render()
-            action = random.randint(0,7)
+            model = load_model('box_stack_dqn.h5')
+            action = np.argmax(model.predict(ob))
             ob, reward, done = env.step(action)
+            ob = np.reshape(ob, [1, 34])
             sum_reward += reward
             if done:
                 # print('Episode %d has %d frames' % (i_episode, i_frame))

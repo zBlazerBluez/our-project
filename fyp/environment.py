@@ -1,6 +1,7 @@
 import random
 
-
+ROW_SIZE = 4
+COL_SIZE = 4
 SQUARE = 0
 RECT = 1
 HORIZONTAL = 0
@@ -10,7 +11,9 @@ RECT_VER = [[1 for _ in range(2)] for _ in range(4)]
 RECT_HOR = [[1 for _ in range(4)] for _ in range(2)]
 ACTION_DICT = 	{0:(SQUARE,(0,0)), 1:(SQUARE,(0,2)), 2:(SQUARE,(2,0)), 3:(SQUARE,(2,2)),
 				4:(RECT_HOR,(0,0)), 5:(RECT_HOR,(2,0)), 
-				6:(RECT_VER,(0,0)), 7:(RECT_VER,(0,2))}
+				6:(RECT_VER,(0,0)), 7:(RECT_VER,(0,2)),
+				8:(SQUARE,(0,1)), 9:(SQUARE,(1,0)), 10:(SQUARE,(1,1)), 11:(SQUARE,(1,2)), 12:(SQUARE,(2,1)),
+				13:(RECT_HOR,(1,0)), 14:(RECT_VER,(0,1))}
 
 class Board(object):
 	ROW_SIZE = 4
@@ -43,6 +46,23 @@ class Board(object):
 		return self.data[layer]
 	def set_current_layer(self, cl, k=0):
 		self.data[self.num_layer-k] = cl
+	def observable(self):
+		layers_to_look_at = 2
+		vectorized_list = []
+		if (self.num_layer == 0):
+			layers_to_look_at = 1
+		# looking at highest layer
+		for i in range(self.ROW_SIZE):
+			for j in range(self.COL_SIZE):
+				vectorized_list.append(self.data[self.num_layer][i][j])
+		if self.num_layer == 0:
+			for _ in range(self.ROW_SIZE * self.COL_SIZE):
+				vectorized_list.append(0)
+		else:
+			for i in range(self.ROW_SIZE):
+				for j in range(self.COL_SIZE):
+					vectorized_list.append(self.data[self.num_layer-1][i][j])
+		return vectorized_list
 	def check_collide(self, block, position, layer):
 		x,y = position
 		for i in range(len(block)):
@@ -74,18 +94,34 @@ class Board(object):
 
 	def compute_reward(self):
 		reward = 100
-		for i in range(self.num_layer + 1):
-			for j in range(4):
-				for k in range(4):
+		# for layers other than latest one:
+		for i in range(self.num_layer):
+			for j in range(self.ROW_SIZE):
+				for k in range(self.COL_SIZE):
 					if self.data[i][j][k] == 1:
 						reward += 0
 					else:
 						reward -= 1
+		# for latest layer, check for symetry:
+		up, down, left, right = 0,0,0,0
+		for j in range(self.ROW_SIZE):
+			for k in range(self.COL_SIZE):
+				if self.data[self.num_layer][j][k] == 1:
+					if (j<2):
+						up += 1
+					else:
+						down += 1
+					if (k<2):
+						left += 1
+					else:
+						right += 1
+		unbalance_index = abs(up - down) + abs(left - right)
+		reward -= unbalance_index * 2
 		return reward
 
 class Environment(object):
 	def __init__(self):
-		pass
+		self.action_space = [x for x in range(15)]
 		# self.board = Board()
 		# self.num_square = random.randint(1,19)
 		# self.num_rect = 20 - num_square
@@ -96,17 +132,21 @@ class Environment(object):
 		self.num_square = random.randint(1,7)
 		self.num_rect = 8 - self.num_square
 		print('There are %d quares and %d rectangulars' %(self.num_square, self.num_rect))
+		return self.get_current_state()
 
 	def render(self):
 		self.board.display()
 	def get_current_state(self):
-		return (self.board.data, self.num_square, self.num_rect)
+		observation = self.board.observable()
+		observation.append(self.num_square)
+		observation.append(self.num_rect)
+		return observation
 	def step(self, action):
-		reward = -0.1
+		reward = -2
 		done = 0
 		current_state = self.get_current_state()	
 
-		block, position = action
+		block, position = ACTION_DICT[action]
 		if block == SQUARE:
 			if self.num_square == 0:
 				return (current_state, reward, done)
