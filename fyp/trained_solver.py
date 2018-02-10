@@ -7,23 +7,33 @@ if __name__ == '__main__':
     MAX_FRAME = 50
 
     env = Environment()		
-    reward = 0
-    done = False
+
     running_reward = 0
     for i_episode in range(NUM_EPISODE):
+        reward = 0
+        done = False
         ob = env.reset()
         ob = np.reshape(ob, [1, 34])
         sum_reward = 0
         for i_frame in range(MAX_FRAME):
             print('frame %d immidiate reward %d sum_reward %d' %(i_frame, reward, sum_reward))
             env.render()
-            model = load_model('box_stack_dqn.h5')
-            action = np.argmax(model.predict(ob))
+            model = load_model('new_NN2.h5')
+            predicted_values = model.predict(ob)
+            action = np.argmax(predicted_values)
+            #action = 9;
+            print(predicted_values)
+            print('Chose action %d' % action)
             ob, reward, done = env.step(action)
             ob = np.reshape(ob, [1, 34])
             sum_reward += reward
             if done:
                 # print('Episode %d has %d frames' % (i_episode, i_frame))
                 break
+        env.render()
         running_reward = running_reward * 0.95 + sum_reward * 0.05
-        print('episode %d sum_reward %f' %(i_episode, sum_reward))
+        print('***Episode %d i_frame %d reward %d sum_reward %f' %(i_episode, i_frame, reward, sum_reward))
+        print('____________________________________________________________________________________________')
+    
+    
+        

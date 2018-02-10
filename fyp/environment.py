@@ -24,7 +24,7 @@ class Board(object):
 	VERTICAL = 1
 	def __init__(self):
 		self.data = []
-		self.num_layer = -1
+		self.num_layer = 0
 		self.add_layer()
 	def add_layer(self):
 		new_layer = [[0 for _ in range(self.ROW_SIZE)] for _ in range(self.COL_SIZE)]
@@ -36,7 +36,7 @@ class Board(object):
 		# 		print(self.data[layer][row])
 		# 	print('')
 		for row in range(self.ROW_SIZE):
-			for layer in range(self.num_layer + 1):
+			for layer in range(self.num_layer):
 				print(self.data[layer][row]),
 			print('')
 
@@ -45,23 +45,23 @@ class Board(object):
 	def get_layer(self, layer):
 		return self.data[layer]
 	def set_current_layer(self, cl, k=0):
-		self.data[self.num_layer-k] = cl
+		self.data[self.num_layer-k-1] = cl
 	def observable(self):
 		layers_to_look_at = 2
 		vectorized_list = []
-		if (self.num_layer == 0):
+		if (self.num_layer == 1):
 			layers_to_look_at = 1
 		# looking at highest layer
 		for i in range(self.ROW_SIZE):
 			for j in range(self.COL_SIZE):
-				vectorized_list.append(self.data[self.num_layer][i][j])
-		if self.num_layer == 0:
+				vectorized_list.append(self.data[self.num_layer-1][i][j])
+		if self.num_layer == 1:
 			for _ in range(self.ROW_SIZE * self.COL_SIZE):
 				vectorized_list.append(0)
 		else:
 			for i in range(self.ROW_SIZE):
 				for j in range(self.COL_SIZE):
-					vectorized_list.append(self.data[self.num_layer-1][i][j])
+					vectorized_list.append(self.data[self.num_layer-2][i][j])
 		return vectorized_list
 	def check_collide(self, block, position, layer):
 		x,y = position
@@ -72,30 +72,34 @@ class Board(object):
 		return False
 	def add_block(self, block, position):
 		# Check if adding command is valid
-
-		cl = self.get_layer(self.num_layer)
+		guided_punishment = 0
+		cl = self.get_layer(self.num_layer-1)
 		x,y = position
 		k = 1
 		if self.check_collide(block, position, cl) == False:
-			if self.num_layer != 0:
-				while (k!=self.num_layer+1 and self.check_collide(block, position, self.get_layer(self.num_layer-k)) == False ):
-					print('Dropping 1 layer down')
+			if self.num_layer != 1:
+				while (k!=self.num_layer and self.check_collide(block, position, self.get_layer(self.num_layer-k-1)) == False ):
+					# print('Dropping 1 layer down')
 					k += 1
-			cl = self.get_layer(self.num_layer - k + 1)
+			cl = self.get_layer(self.num_layer - k)
 		else:
+			for i in range(len(cl)):
+				for j in range(len(cl[i])):
+					if cl[i][j] == 0:
+						guided_punishment += 2
 			self.add_layer()
-			cl = self.get_layer(self.num_layer)
+			cl = self.get_layer(self.num_layer-1)
 		# Do add nowwwwwwwwwwwwwwwwwwwwwwwwwww
 		for i in range(len(block)):
 			for j in range(len(block[i])):
 				cl[x+i][y+j] = 1
 		self.set_current_layer(cl,k-1)
-		return True #block added sucessfully
+		return guided_punishment # 
 
 	def compute_reward(self):
 		reward = 100
 		# for layers other than latest one:
-		for i in range(self.num_layer):
+		for i in range(self.num_layer-1):
 			for j in range(self.ROW_SIZE):
 				for k in range(self.COL_SIZE):
 					if self.data[i][j][k] == 1:
@@ -106,7 +110,7 @@ class Board(object):
 		up, down, left, right = 0,0,0,0
 		for j in range(self.ROW_SIZE):
 			for k in range(self.COL_SIZE):
-				if self.data[self.num_layer][j][k] == 1:
+				if self.data[self.num_layer-1][j][k] == 1:
 					if (j<2):
 						up += 1
 					else:
@@ -116,7 +120,7 @@ class Board(object):
 					else:
 						right += 1
 		unbalance_index = abs(up - down) + abs(left - right)
-		reward -= unbalance_index * 2
+		reward -= unbalance_index * 1
 		return reward
 
 class Environment(object):
@@ -131,7 +135,7 @@ class Environment(object):
 		self.board = Board()
 		self.num_square = random.randint(1,7)
 		self.num_rect = 8 - self.num_square
-		print('There are %d quares and %d rectangulars' %(self.num_square, self.num_rect))
+		#print('There are %d quares and %d rectangulars' %(self.num_square, self.num_rect))
 		return self.get_current_state()
 
 	def render(self):
@@ -157,7 +161,7 @@ class Environment(object):
 				return (current_state, reward, done)
 			else:
 				self.num_rect -= 1
-		self.board.add_block(block, position)
+		reward -= self.board.add_block(block, position)
 		
 		if (self.num_square == 0 and self.num_rect == 0):
 			done = 1

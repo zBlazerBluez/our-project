@@ -3,6 +3,7 @@ import numpy as np
 import gym
 import random
 from collections import deque
+from keras.models import load_model
 from keras.models import Sequential
 from keras.layers import Dense
 from keras.optimizers import Adam
@@ -14,19 +15,14 @@ class DeepQLearningAgent:
         self.memory = deque(maxlen=10000)
         self.batch_size = 128
         self.gamma = 0.95
-        self.epsilon = 1
-        self.epsilon_min = 0.15
-        self.epsilon_decay = 0.99998
+        self.epsilon = 0.5
+        self.epsilon_min = 0.3
+        self.epsilon_decay = 0.998
         self.alpha = 0.01
         self.alpha_decay = 0.01
 
         # Deep QLearning model.
-        self.model = Sequential()
-        self.model.add(Dense(68, input_dim=34, activation='relu')) #ROW_SIZE*COL_SIZE*2+2 (first 2 layers and 2 remaining number)
-        self.model.add(Dense(48, activation='relu'))
-        self.model.add(Dense(34, activation='relu'))
-        self.model.add(Dense(15, activation='linear'))
-        self.model.compile(loss='mse', optimizer=Adam(lr=self.alpha, decay=self.alpha_decay))
+        self.model = load_model('stochastic_gradient_descent.h5')
 
     def remember(self, state, action, reward, next_state, done, value=0):
         self.memory.append([state, action, reward, next_state, done, value])
@@ -70,13 +66,11 @@ class DeepQLearningAgent:
             self.epsilon *= self.epsilon_decay
 
     def save_model(self):
-        self.model.save('new_NN3.h5')
+        self.model.save('stochastic_gradient_descent.h5')
 
 if __name__ == '__main__':
-    NUM_EPISODE = 2000001
-    MAX_FRAME = 50
-
-    f = open('log.txt','w')
+    NUM_EPISODE = 300000
+    MAX_FRAME = 24
 
     env = Environment()	
     agent = DeepQLearningAgent(env)	
@@ -99,18 +93,15 @@ if __name__ == '__main__':
             sum_reward += reward
             i_step += 1
 
-            if i_step > 24:
+            if i_step > MAX_FRAME:
             	reward = -100
             	done = True
             	
         agent.update_value(i_step)
         agent.learn(i_step)
         running_reward = running_reward * 0.95 + sum_reward * 0.05
-        if i_episode % 10000 == 0:
-        	print('episode %d i_step %d reward %d sum_reward %d running_reward %f' %(i_episode, i_step, reward, sum_reward, running_reward))
-        	f.write('%d \t %d \n' %(sum_reward, running_reward))
+        print('episode %d i_step %d reward %d sum_reward %d running_reward %f' %(i_episode, i_step, reward, sum_reward, running_reward))
         # if (i_episode%100 == 0):
         #     env.render()
 
     agent.save_model()
-    f.close()
