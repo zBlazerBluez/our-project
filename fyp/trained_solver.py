@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 from environment import *
 from keras.models import load_model
 import numpy as np
@@ -18,7 +19,7 @@ if __name__ == '__main__':
         for i_frame in range(MAX_FRAME):
             print('frame %d immidiate reward %d sum_reward %d' %(i_frame, reward, sum_reward))
             env.render()
-            model = load_model('new_NN2.h5')
+            model = load_model('trained_models/updated_rule_pretrained2.h5')
             predicted_values = model.predict(ob)
             action = np.argmax(predicted_values)
             #action = 9;

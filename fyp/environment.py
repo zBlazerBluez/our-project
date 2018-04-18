@@ -37,7 +37,7 @@ class Board(object):
 		# 	print('')
 		for row in range(self.ROW_SIZE):
 			for layer in range(self.num_layer):
-				print(self.data[layer][row]),
+				print(self.data[layer][row], end='')
 			print('')
 
 	def get(self, layer, row, col):
@@ -97,7 +97,7 @@ class Board(object):
 		return guided_punishment # 
 
 	def compute_reward(self):
-		reward = 100
+		reward = 116
 		# for layers other than latest one:
 		for i in range(self.num_layer-1):
 			for j in range(self.ROW_SIZE):
@@ -133,8 +133,8 @@ class Environment(object):
 		# self.batch_remaining = 4
 	def reset(self):
 		self.board = Board()
-		self.num_square = random.randint(1,7)
-		self.num_rect = 8 - self.num_square
+		self.num_square = random.randint(1,14)
+		self.num_rect = 14 - self.num_square
 		#print('There are %d quares and %d rectangulars' %(self.num_square, self.num_rect))
 		return self.get_current_state()
 
@@ -148,7 +148,10 @@ class Environment(object):
 	def step(self, action):
 		reward = -2
 		done = 0
-		current_state = self.get_current_state()	
+		check = 0
+		current_state = self.get_current_state()
+		if current_state[:32] == [0 for _ in range(32)] and action == 5:
+			check = 1
 
 		block, position = ACTION_DICT[action]
 		if block == SQUARE:
@@ -167,6 +170,8 @@ class Environment(object):
 			done = 1
 			reward += self.board.compute_reward()
 		next_state = self.get_current_state()
+		if check == 1:
+			reward = -50
 		return (next_state, reward, done)
 
 

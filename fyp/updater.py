@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 from environment import *
 import numpy as np
 import gym
@@ -15,14 +16,14 @@ class DeepQLearningAgent:
         self.memory = deque(maxlen=10000)
         self.batch_size = 128
         self.gamma = 0.95
-        self.epsilon = 0.5
-        self.epsilon_min = 0.3
-        self.epsilon_decay = 0.998
+        self.epsilon = 0.2
+        self.epsilon_min = 0.15
+        self.epsilon_decay = 0.99998
         self.alpha = 0.01
         self.alpha_decay = 0.01
 
         # Deep QLearning model.
-        self.model = load_model('stochastic_gradient_descent.h5')
+        self.model = load_model('trained_models/updated_rule_pretrained.h5')
 
     def remember(self, state, action, reward, next_state, done, value=0):
         self.memory.append([state, action, reward, next_state, done, value])
@@ -66,11 +67,13 @@ class DeepQLearningAgent:
             self.epsilon *= self.epsilon_decay
 
     def save_model(self):
-        self.model.save('stochastic_gradient_descent.h5')
+        self.model.save('trained_models/updated_rule_pretrained2.h5')
 
 if __name__ == '__main__':
     NUM_EPISODE = 300000
     MAX_FRAME = 24
+
+    f = open('logs/updated_rule_pretrained2.txt','w')
 
     env = Environment()	
     agent = DeepQLearningAgent(env)	
@@ -100,8 +103,13 @@ if __name__ == '__main__':
         agent.update_value(i_step)
         agent.learn(i_step)
         running_reward = running_reward * 0.95 + sum_reward * 0.05
-        print('episode %d i_step %d reward %d sum_reward %d running_reward %f' %(i_episode, i_step, reward, sum_reward, running_reward))
+        if i_episode % 5000 == 0:
+            print('episode %d i_step %d reward %d sum_reward %d running_reward %f' %(i_episode, i_step, reward, sum_reward, running_reward))
+            f.write('%d, %d, %d \n' %(sum_reward, running_reward, agent.epsilon))
+            agent.save_model()
+        #print('episode %d i_step %d reward %d sum_reward %d running_reward %f' %(i_episode, i_step, reward, sum_reward, running_reward))
         # if (i_episode%100 == 0):
         #     env.render()
+    f.close()
 
-    agent.save_model()
+    
