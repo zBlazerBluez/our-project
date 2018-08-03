@@ -29,6 +29,9 @@ for i in range(ROW_SIZE - 3):
         ACTION_DICT[action] = (RECT_VER, (i, j))
         action += 1
 
+NUM_STATE = 290
+NUM_ACTION = 319
+
 
 class Board(object):
     ROW_SIZE = 12
