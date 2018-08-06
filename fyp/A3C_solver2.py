@@ -24,7 +24,7 @@ import environment as ev
 #-- constants
 ENV = 'CartPole-v0'
 
-RUN_TIME = 60
+RUN_TIME = 600
 THREADS = 8
 OPTIMIZERS = 2
 THREAD_DELAY = 0.001
@@ -41,8 +41,8 @@ EPS_STEPS = 75000
 MIN_BATCH = 32
 LEARNING_RATE = 5e-3
 
-LOSS_V = .5         # v loss coefficient
-LOSS_ENTROPY = .01  # entropy coefficient
+LOSS_V = .5			# v loss coefficient
+LOSS_ENTROPY = .01 	# entropy coefficient
 
 #---------
 
@@ -67,10 +67,7 @@ class Brain:
     def _build_model(self):
 
         l_input = Input(batch_shape=(None, NUM_STATE))
-
         l_dense = Dense(16, activation='relu')(l_input)
-        # l1_dense = Dense(60, activation='relu')(l_input)
-        # l2_dense = Dense(60, activation='relu')(l1_dense)
 
         out_actions = Dense(NUM_ACTIONS, activation='softmax')(l_dense)
         out_value = Dense(1, activation='linear')(l_dense)
@@ -90,8 +87,8 @@ class Brain:
         log_prob = tf.log(tf.reduce_sum(p * a_t, axis=1, keep_dims=True) + 1e-10)
         advantage = r_t - v
 
-        loss_policy = - log_prob * tf.stop_gradient(advantage)                                  # maximize policy
-        loss_value = LOSS_V * tf.square(advantage)                                              # minimize value error
+        loss_policy = - log_prob * tf.stop_gradient(advantage)									# maximize policy
+        loss_value = LOSS_V * tf.square(advantage)												# minimize value error
         entropy = LOSS_ENTROPY * tf.reduce_sum(p * tf.log(p + 1e-10), axis=1, keep_dims=True)  # maximize entropy (regularization)
 
         loss_total = tf.reduce_mean(loss_policy + loss_value + entropy)
@@ -108,7 +105,7 @@ class Brain:
 
         with self.lock_queue:
             if len(self.train_queue[0]) < MIN_BATCH:  # more thread could have passed without lock
-                return                                  # we can't yield inside lock
+                return 									# we can't yield inside lock
 
             s, a, r, s_, s_mask = self.train_queue
             self.train_queue = [[], [], [], [], []]
@@ -176,7 +173,7 @@ class Agent:
         else:
             return self.eps_start + frames * (self.eps_end - self.eps_start) / self.eps_steps  # linearly interpolate
 
-    def act(self, s, render=False):
+    def act(self, s):
         eps = self.getEpsilon()
         global frames
         frames = frames + 1
@@ -190,9 +187,7 @@ class Agent:
 
             # a = np.argmax(p)
             a = np.random.choice(NUM_ACTIONS, p=p)
-            if render:
-                print('output prob')
-                print(p)
+
             return a
 
     def train(self, s, a, r, s_):
@@ -252,9 +247,8 @@ class Environment(threading.Thread):
 
             if self.render:
                 self.env.render()
-                a = self.agent.act(s, True)
-            else:
-                a = self.agent.act(s, True)
+
+            a = self.agent.act(s)
             # s_, r, done, info = self.env.step(a)
             s_, r, done = self.env.step(a)
 

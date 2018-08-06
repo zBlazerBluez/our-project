@@ -170,11 +170,13 @@ class Environment(object):
         block, position = ACTION_DICT[action]
         if block == SQUARE:
             if self.num_square == 0:
+                reward = -20
                 return (current_state, reward, done)
             else:
                 self.num_square -= 1
         else:
             if self.num_rect == 0:
+                reward = -20
                 return (current_state, reward, done)
             else:
                 self.num_rect -= 1
