@@ -20,11 +20,11 @@ from keras.models import *
 from keras.layers import *
 from keras import backend as K
 
-import environment as ev
+import environment3 as ev
 #-- constants
 ENV = 'CartPole-v0'
 
-RUN_TIME = 30000
+RUN_TIME = 300
 THREADS = 8
 OPTIMIZERS = 2
 THREAD_DELAY = 0.001
@@ -157,7 +157,7 @@ class Brain:
             return v
 
     def save_model(self):
-        self.model.save('trained_models/a3c.h5')
+        self.model.save('trained_models/a3c3.h5')
 
 #---------
 frames = 0
@@ -305,7 +305,7 @@ env_test = Environment(render=True, eps_start=0., eps_end=0.)
 # NUM_STATE = env_test.env.observation_space.shape[0]
 # NUM_ACTIONS = env_test.env.action_space.n
 NUM_STATE = 34
-NUM_ACTIONS = 15
+NUM_ACTIONS = 32
 NONE_STATE = np.zeros(NUM_STATE)
 
 brain = Brain()  # brain is global in A3C

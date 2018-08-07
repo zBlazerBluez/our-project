@@ -9,19 +9,14 @@ VERTICAL = 1
 SQUARE = [[1 for _ in range(2)] for _ in range(2)]
 RECT_VER = [[1 for _ in range(2)] for _ in range(4)]
 RECT_HOR = [[1 for _ in range(4)] for _ in range(2)]
-ACTION_DICT = {0: (SQUARE, (0, 0)), 1: (SQUARE, (0, 2)), 2: (SQUARE, (2, 0)), 3: (SQUARE, (2, 2)),
-               4: (RECT_HOR, (0, 0)), 5: (RECT_HOR, (2, 0)),
-               6: (RECT_VER, (0, 0)), 7: (RECT_VER, (0, 2)),
-               8: (SQUARE, (0, 1)), 9: (SQUARE, (1, 0)), 10: (SQUARE, (1, 1)), 11: (SQUARE, (1, 2)), 12: (SQUARE, (2, 1)),
-               13: (RECT_HOR, (1, 0)), 14: (RECT_VER, (0, 1))}
-NUM_STATE = 34
-NUM_ACTION = 15
+ACTION_DICT = {row * COL_SIZE + col: (row, col) for row in range(ROW_SIZE) for col in range(COL_SIZE)}
+NUM_STATE = 34  # to change
+NUM_ACTION = 32
+
 
 class Board(object):
     ROW_SIZE = 4
     COL_SIZE = 4
-    SQUARE = 0
-    RECT = 1
     HORIZONTAL = 0
     VERTICAL = 1
 
@@ -86,9 +81,9 @@ class Board(object):
         cl = self.get_layer(self.num_layer - 1)
         x, y = position
         k = 1
-        if self.check_collide(block, position, cl) == False:
+        if not self.check_collide(block, position, cl):
             if self.num_layer != 1:
-                while (k != self.num_layer and self.check_collide(block, position, self.get_layer(self.num_layer - k - 1)) == False):
+                while (k != self.num_layer and not self.check_collide(block, position, self.get_layer(self.num_layer - k - 1))):
                     # print('Dropping 1 layer down')
                     k += 1
             cl = self.get_layer(self.num_layer - k)
@@ -107,7 +102,7 @@ class Board(object):
         return guided_punishment
 
     def compute_reward(self):
-        reward = 116
+        reward = 216
         # for layers other than latest one:
         for i in range(self.num_layer - 1):
             for j in range(self.ROW_SIZE):
@@ -136,7 +131,10 @@ class Board(object):
 
 class Environment(object):
     def __init__(self):
-        self.action_space = [x for x in range(15)]
+        self.NUM_ACTION = NUM_ACTION
+        self.NUM_STATE = NUM_STATE
+        self.action_space = [x for x in range(self.NUM_ACTION)]
+        self.queue = [(1, 1), (1, 1), (2, 1), (2, 1), (3, 1), (4, 1), (2, 2), (3, 2)]
         # self.board = Board()
         # self.num_square = random.randint(1,19)
         # self.num_rect = 20 - num_square
@@ -145,8 +143,7 @@ class Environment(object):
 
     def reset(self):
         self.board = Board()
-        self.num_square = random.randint(1, 14)
-        self.num_rect = 14 - self.num_square
+        self.queue = [(1, 1), (1, 1), (2, 1), (2, 1), (3, 1), (4, 1), (2, 2), (3, 2)]
         #print('There are %d quares and %d rectangulars' %(self.num_square, self.num_rect))
         return self.get_current_state()
 
@@ -155,8 +152,12 @@ class Environment(object):
 
     def get_current_state(self):
         observation = self.board.observable()
-        observation.append(self.num_square)
-        observation.append(self.num_rect)
+        if self.queue:
+            observation.append(self.queue[-1][0])
+            observation.append(self.queue[-1][1])
+        else:
+            observation.append(-1)
+            observation.append(-1)
         return observation
 
     def step(self, action):
@@ -164,25 +165,38 @@ class Environment(object):
         done = 0
         check = 0
         current_state = self.get_current_state()
-        if current_state[:32] == [0 for _ in range(32)] and action == 5:
+        if current_state[:32] == [0 for _ in range(32)] and action == 0:
             check = 1
+        pos_x, pos_y = ACTION_DICT[action % len(ACTION_DICT)]
 
-        block, position = ACTION_DICT[action]
-        if block == SQUARE:
-            if self.num_square == 0:
-                # reward = -20
-                return (current_state, reward, done)
-            else:
-                self.num_square -= 1
+        if action < len(ACTION_DICT):
+            x, y = self.queue[-1]
         else:
-            if self.num_rect == 0:
-                # reward = -20
-                return (current_state, reward, done)
-            else:
-                self.num_rect -= 1
+            y, x = self.queue[-1]
+
+        block = [[1 for _ in range(x)] for _ in range(y)]
+        position = (pos_x, pos_y)
+        # print("Chosen placing (%d,%d) at %d, %d", x, y, pos_x, pos_y)
+
+        # if block == SQUARE:
+        #     if self.num_square == 0:
+        #         # reward = -20
+        #         return (current_state, reward, done)
+        #     else:
+        #         self.num_square -= 1
+        # else:
+        #     if self.num_rect == 0:
+        #         # reward = -20
+        #         return (current_state, reward, done)
+        #     else:
+        #         self.num_rect -= 1
+        if pos_x + len(block) > COL_SIZE or pos_y + len(block[0]) > ROW_SIZE:
+            return (current_state, -10, done)
+        self.queue.pop()
+        # print('popped')
         reward -= self.board.add_block(block, position)
 
-        if (self.num_square == 0 and self.num_rect == 0):
+        if (len(self.queue) == 0):
             done = 1
             reward += self.board.compute_reward()
         next_state = self.get_current_state()
