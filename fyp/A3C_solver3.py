@@ -24,7 +24,7 @@ import environment3 as ev
 #-- constants
 ENV = 'CartPole-v0'
 
-RUN_TIME = 300
+RUN_TIME = 20000
 THREADS = 8
 OPTIMIZERS = 2
 THREAD_DELAY = 0.001
@@ -34,9 +34,9 @@ GAMMA = 0.99
 N_STEP_RETURN = 8
 GAMMA_N = GAMMA ** N_STEP_RETURN
 
-EPS_START = 0.4
-EPS_STOP = .15
-EPS_STEPS = 75000
+EPS_START = 0.5
+EPS_STOP = .2
+EPS_STEPS = 7500000
 
 MIN_BATCH = 32
 LEARNING_RATE = 5e-3
@@ -334,5 +334,5 @@ for o in opts:
 brain.save_model()
 print("Training finished")
 env_test.start()
-time.sleep(10)
+time.sleep(2)
 env_test.stop()
