@@ -19,12 +19,13 @@ import threading
 from keras.models import *
 from keras.layers import *
 from keras import backend as K
+# from collections import deque
 
 import environment4 as ev
 #-- constants
 ENV = 'CartPole-v0'
 
-RUN_TIME = 24000
+RUN_TIME = 1800
 THREADS = 8
 OPTIMIZERS = 2
 THREAD_DELAY = 0.001
@@ -34,9 +35,9 @@ GAMMA = 0.99
 N_STEP_RETURN = 8
 GAMMA_N = GAMMA ** N_STEP_RETURN
 
-EPS_START = 0.5
+EPS_START = 0.6
 EPS_STOP = .2
-EPS_STEPS = 7500000
+EPS_STEPS = 75000
 
 MIN_BATCH = 32
 LEARNING_RATE = 5e-3
@@ -51,12 +52,16 @@ class Brain:
     train_queue = [[], [], [], [], []]  # s, a, r, s', s' terminal mask
     lock_queue = threading.Lock()
 
-    def __init__(self):
+    def __init__(self, i):
+        self.model_path = 'trained_models/a3c4.h5'
+        self.weights_path = 'trained_models/weights_a3c4.h5'
         self.session = tf.Session()
         K.set_session(self.session)
         K.manual_variable_initialization(True)
 
         self.model = self._build_model()
+        if i != 0:
+            self.model.load_weights(self.weights_path)
         self.graph = self._build_graph(self.model)
 
         self.session.run(tf.global_variables_initializer())
@@ -83,11 +88,11 @@ class Brain:
         return model
 
     def _build_graph(self, model):
-        s_t = tf.placeholder(tf.float32, shape=(4, 4, 3))
+        s_t = tf.placeholder(tf.float32, shape=(None, 4, 4, 3))
         a_t = tf.placeholder(tf.float32, shape=(None, NUM_ACTIONS))
         r_t = tf.placeholder(tf.float32, shape=(None, 1))  # not immediate, but discounted n step reward
 
-        s_t = tf.reshape(s_t, (-1, 4, 4, 3))
+        # s_t = tf.reshape(s_t, (-1, 4, 4, 3))
         p, v = model(s_t)
 
         log_prob = tf.log(tf.reduce_sum(p * a_t, axis=1, keep_dims=True) + 1e-10)
@@ -159,8 +164,11 @@ class Brain:
             p, v = self.model.predict(s)
             return v
 
-    def save_model(self):
-        self.model.save('trained_models/a3c4.h5')
+    def save_weights(self):
+        self.model.save_weights(self.weights_path)
+
+    # def _load_model(self):
+    #     self.model = load_model(self.model_path)
 
 #---------
 frames = 0
@@ -172,7 +180,8 @@ class Agent:
         self.eps_end = eps_end
         self.eps_steps = eps_steps
 
-        self.memory = []  # used for n_step return
+        # self.memory = deque(100)  # used for n_step return
+        self.memory = []
         self.R = 0.
 
     def getEpsilon(self):
@@ -260,6 +269,7 @@ class Environment(threading.Thread):
             a = 0
             if self.render:
                 self.env.render()
+            # print(len(self.agent.train_queue))  # CHECK memory leak
             s = s.reshape(-1, 4, 4, 3)
             a = self.agent.act(s)
             #     a = self.agent.act(s, True)
@@ -306,14 +316,15 @@ class Optimizer(threading.Thread):
 
 
 #-- main
-env_test = Environment(render=True, eps_start=0., eps_end=0.)
+# env_test = Environment(render=True, eps_start=0., eps_end=0.)
 # NUM_STATE = env_test.env.observation_space.shape[0]
 # NUM_ACTIONS = env_test.env.action_space.n
 NUM_STATE = 34
 NUM_ACTIONS = 32
 NONE_STATE = np.zeros((3, 4, 4))
+# brain = Brain(0)
 
-brain = Brain()  # brain is global in A3C
+brain = Brain(1)  # brain is global in A3C
 
 envs = [Environment() for i in range(THREADS)]
 opts = [Optimizer() for i in range(OPTIMIZERS)]
@@ -336,8 +347,8 @@ for o in opts:
 for o in opts:
     o.join()
 
-brain.save_model()
-print("Training finished")
-env_test.start()
-time.sleep(2)
-env_test.stop()
+brain.save_weights()
+print("Training check_point\n_________________________________________________________________")
+# env_test.start()
+# time.sleep(2)
+# env_test.stop()
