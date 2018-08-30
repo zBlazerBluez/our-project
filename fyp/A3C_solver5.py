@@ -21,23 +21,23 @@ from keras.layers import *
 from keras import backend as K
 # from collections import deque
 
-import environment4 as ev
+import environment5 as ev
 #-- constants
 ENV = 'CartPole-v0'
 
-RUN_TIME = 1800
+RUN_TIME = 900
 THREADS = 8
 OPTIMIZERS = 2
 THREAD_DELAY = 0.001
 
 GAMMA = 0.99
 
-N_STEP_RETURN = 8
+N_STEP_RETURN = 4
 GAMMA_N = GAMMA ** N_STEP_RETURN
 
 EPS_START = 0.6
 EPS_STOP = .2
-EPS_STEPS = 75000
+EPS_STEPS = 7500
 
 MIN_BATCH = 32
 LEARNING_RATE = 5e-3
@@ -53,8 +53,8 @@ class Brain:
     lock_queue = threading.Lock()
 
     def __init__(self, i):
-        self.model_path = 'trained_models/a3c4.h5'
-        self.weights_path = 'trained_models/weights_a3c4.h5'
+        self.model_path = 'trained_models/a3c5_v2.h5'
+        self.weights_path = 'trained_models/weights_a3c5_v2.h5'
         self.session = tf.Session()
         K.set_session(self.session)
         K.manual_variable_initialization(True)
@@ -71,16 +71,18 @@ class Brain:
 
     def _build_model(self):
 
-        l_input = Input(batch_shape=(None, 4, 4, 3))
+        l_input = Input(batch_shape=(None, 12, 12, 3))
         # l_input = Reshape((1, 4, 4, 3))(l_input0)
 
-        l1 = Conv2D(16, (2, 2), activation='relu', padding='same')(l_input)
-        l2 = Conv2D(32, (3, 3), activation='relu', padding='same')(l1)
+        l1 = Conv2D(32, (5, 5), activation='relu', padding='same')(l_input)
+        l2 = Conv2D(64, (5, 5), activation='relu', padding='same')(l1)
         l3 = Flatten()(l2)
         l4 = Flatten()(l_input)
+        l5 = Dense(NUM_ACTIONS * 2, activation='relu')(l3)
+        l6 = Dense(64, activation='relu')(l4)
 
-        out_actions = Dense(NUM_ACTIONS, activation='softmax')(l3)
-        out_value = Dense(1, activation='linear')(l4)
+        out_actions = Dense(NUM_ACTIONS, activation='softmax')(l5)
+        out_value = Dense(1, activation='linear')(l6)
 
         model = Model(inputs=[l_input], outputs=[out_actions, out_value])
         model._make_predict_function()  # have to initialize before threading
@@ -88,7 +90,7 @@ class Brain:
         return model
 
     def _build_graph(self, model):
-        s_t = tf.placeholder(tf.float32, shape=(None, 4, 4, 3))
+        s_t = tf.placeholder(tf.float32, shape=(None, 12, 12, 3))
         a_t = tf.placeholder(tf.float32, shape=(None, NUM_ACTIONS))
         r_t = tf.placeholder(tf.float32, shape=(None, 1))  # not immediate, but discounted n step reward
 
@@ -107,15 +109,18 @@ class Brain:
         optimizer = tf.train.RMSPropOptimizer(LEARNING_RATE, decay=.99)
         minimize = optimizer.minimize(loss_total)
 
-        return s_t, a_t, r_t, minimize
+        return s_t, a_t, r_t, minimize, loss_total
 
     def optimize(self):
+        # print('here')
         if len(self.train_queue[0]) < MIN_BATCH:
             time.sleep(0)  # yield
+            # print('1')
             return
 
         with self.lock_queue:
             if len(self.train_queue[0]) < MIN_BATCH:  # more thread could have passed without lock
+                # print('2')
                 return                                  # we can't yield inside lock
 
             s, a, r, s_, s_mask = self.train_queue
@@ -133,8 +138,9 @@ class Brain:
         v = self.predict_v(s_)
         r = r + GAMMA_N * v * s_mask  # set v to 0 where s_ is terminal state
 
-        s_t, a_t, r_t, minimize = self.graph
-        self.session.run(minimize, feed_dict={s_t: s, a_t: a, r_t: r})
+        s_t, a_t, r_t, minimize, loss_total = self.graph
+        loss = self.session.run([loss_total, minimize], feed_dict={s_t: s, a_t: a, r_t: r})
+        print(loss)
 
     def train_push(self, s, a, r, s_):
         with self.lock_queue:
@@ -143,10 +149,12 @@ class Brain:
             self.train_queue[2].append(r)
 
             if s_ is None:
-                self.train_queue[3].append(NONE_STATE)
+                self.train_queue[3].append(np.array(NONE_STATE))
+                # print('1', np.array(NONE_STATE).shape)
                 self.train_queue[4].append(0.)
             else:
-                self.train_queue[3].append(s_)
+                self.train_queue[3].append(np.array(s_))
+                # print('2', np.array(s_).shape)
                 self.train_queue[4].append(1.)
 
     def predict(self, s):
@@ -270,14 +278,14 @@ class Environment(threading.Thread):
             if self.render:
                 self.env.render()
             # print(len(self.agent.train_queue))  # CHECK memory leak
-            s = s.reshape(-1, 4, 4, 3)
+            s = s.reshape(-1, 12, 12, 3)
             a = self.agent.act(s)
             #     a = self.agent.act(s, True)
             # else:
             #     a = self.agent.act(s, True)
             # s_, r, done, info = self.env.step(a)
             s_, r, done = self.env.step(a)
-            s_ = s_.reshape(-1, 4, 4, 3)
+            s_ = s_.reshape(-1, 12, 12, 3)
             if done:  # terminal state
                 s_ = None
 
@@ -319,9 +327,9 @@ class Optimizer(threading.Thread):
 # env_test = Environment(render=True, eps_start=0., eps_end=0.)
 # NUM_STATE = env_test.env.observation_space.shape[0]
 # NUM_ACTIONS = env_test.env.action_space.n
-NUM_STATE = 34
-NUM_ACTIONS = 32
-NONE_STATE = np.zeros((3, 4, 4))
+NUM_STATE = 432
+NUM_ACTIONS = 288
+NONE_STATE = np.zeros((1, 12, 12, 3))
 # brain = Brain(0)
 
 brain = Brain(1)  # brain is global in A3C

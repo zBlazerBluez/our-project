@@ -1,8 +1,8 @@
 import random
 import numpy as np
 
-ROW_SIZE = 4
-COL_SIZE = 4
+ROW_SIZE = 12
+COL_SIZE = 12
 SQUARE = 0
 RECT = 1
 HORIZONTAL = 0
@@ -11,13 +11,13 @@ SQUARE = [[1 for _ in range(2)] for _ in range(2)]
 RECT_VER = [[1 for _ in range(2)] for _ in range(4)]
 RECT_HOR = [[1 for _ in range(4)] for _ in range(2)]
 ACTION_DICT = {row * COL_SIZE + col: (row, col) for row in range(ROW_SIZE) for col in range(COL_SIZE)}
-NUM_STATE = 34  # to change
-NUM_ACTION = 32
+NUM_STATE = 432  # to change
+NUM_ACTION = 288
 
 
 class Board(object):
-    ROW_SIZE = 4
-    COL_SIZE = 4
+    ROW_SIZE = 12
+    COL_SIZE = 12
     HORIZONTAL = 0
     VERTICAL = 1
 
@@ -113,7 +113,7 @@ class Board(object):
         return guided_punishment
 
     def compute_reward(self):
-        reward = 216
+        reward = 1000
         # for layers other than latest one:
         for i in range(self.num_layer - 1):
             for j in range(self.ROW_SIZE):
@@ -147,7 +147,7 @@ class Environment(object):
         self.NUM_ACTION = NUM_ACTION
         self.NUM_STATE = NUM_STATE
         self.action_space = [x for x in range(self.NUM_ACTION)]
-        self.queue = [(1, 1), (1, 1), (2, 1), (2, 1), (3, 1), (4, 1), (2, 2), (3, 2)]
+        self.queue = [(3, 3),(3, 3), (3, 3), (6, 3), (6, 3), (9, 3), (12, 3), (6, 6), (9, 6)]
         # self.board = Board()
         # self.num_square = random.randint(1,19)
         # self.num_rect = 20 - num_square
@@ -156,7 +156,7 @@ class Environment(object):
 
     def reset(self):
         self.board = Board()
-        self.queue = [(1, 1), (1, 1), (2, 1), (2, 1), (3, 1), (4, 1), (2, 2), (3, 2)]
+        self.queue = [(3, 3), (3, 3), (3, 3), (6, 3), (6, 3), (9, 3), (12, 3), (6, 6), (9, 6)]
         #print('There are %d quares and %d rectangulars' %(self.num_square, self.num_rect))
         return self.get_current_state()
 
