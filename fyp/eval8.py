@@ -21,12 +21,12 @@ from keras.layers import *
 from keras import backend as K
 # from collections import deque
 
-import environment4 as ev
+import environment8 as ev
 #-- constants
 ENV = 'CartPole-v0'
 
-RUN_TIME = 30
-THREADS = 1
+RUN_TIME = 2
+THREADS = 8
 OPTIMIZERS = 2
 THREAD_DELAY = 0.001
 
@@ -37,14 +37,13 @@ GAMMA_N = GAMMA ** N_STEP_RETURN
 
 EPS_START = 0
 EPS_STOP = 0
-EPS_STEPS = 7500
+EPS_STEPS = 75000
 
 MIN_BATCH = 32
-# MIN_BATCH = 4
 LEARNING_RATE = 5e-3
 
 LOSS_V = .5         # v loss coefficient
-LOSS_ENTROPY = 2  # entropy coefficient
+LOSS_ENTROPY = .01  # entropy coefficient
 
 #---------
 
@@ -54,8 +53,8 @@ class Brain:
     lock_queue = threading.Lock()
 
     def __init__(self, i):
-        self.model_path = 'trained_models/a3c4_v3.h5'
-        self.weights_path = 'trained_models/weights_a3c4_v3.h5'
+        self.model_path = 'trained_models/a3c8.h5'
+        self.weights_path = 'trained_models/weights_a3c8.h5'
         self.session = tf.Session()
         K.set_session(self.session)
         K.manual_variable_initialization(True)
@@ -72,11 +71,11 @@ class Brain:
 
     def _build_model(self):
 
-        l_input = Input(batch_shape=(None, 4, 4, 3))
+        l_input = Input(batch_shape=(None, 8, 8, 3))
         # l_input = Reshape((1, 4, 4, 3))(l_input0)
 
-        l1 = Conv2D(16, (2, 2), activation='relu', padding='same')(l_input)
-        l2 = Conv2D(32, (2, 2), activation='relu', padding='same')(l1)
+        l1 = Conv2D(32, (2, 2), activation='relu', padding='same')(l_input)
+        l2 = Conv2D(64, (2, 2), activation='relu', padding='same')(l1)
         l3 = Flatten()(l2)
         l4 = Flatten()(l_input)
         l5 = Dense(NUM_ACTIONS * 2, activation='relu')(l3)
@@ -91,38 +90,34 @@ class Brain:
         return model
 
     def _build_graph(self, model):
-        s_t = tf.placeholder(tf.float32, shape=(None, 4, 4, 3))
+        s_t = tf.placeholder(tf.float32, shape=(None, 8, 8, 3))
         a_t = tf.placeholder(tf.float32, shape=(None, NUM_ACTIONS))
         r_t = tf.placeholder(tf.float32, shape=(None, 1))  # not immediate, but discounted n step reward
 
         # s_t = tf.reshape(s_t, (-1, 4, 4, 3))
         p, v = model(s_t)
 
-        log_prob = tf.log(tf.reduce_sum(p * a_t, axis=1, keepdims=True) + 1e-10)
+        log_prob = tf.log(tf.reduce_sum(p * a_t, axis=1, keep_dims=True) + 1e-10)
         advantage = r_t - v
 
         loss_policy = - log_prob * tf.stop_gradient(advantage)                                  # maximize policy
         loss_value = LOSS_V * tf.square(advantage)                                              # minimize value error
-        entropy = LOSS_ENTROPY * tf.reduce_sum(p * tf.log(p + 1e-10), axis=1, keepdims=True)  # maximize entropy (regularization)
+        entropy = LOSS_ENTROPY * tf.reduce_sum(p * tf.log(p + 1e-10), axis=1, keep_dims=True)  # maximize entropy (regularization)
 
         loss_total = tf.reduce_mean(loss_policy + loss_value + entropy)
 
         optimizer = tf.train.RMSPropOptimizer(LEARNING_RATE, decay=.99)
         minimize = optimizer.minimize(loss_total)
 
-        # return s_t, a_t, r_t, minimize, loss_total, loss_policy[0], loss_value[0], entropy[0], advantage[0], tf.stop_gradient(advantage)[0]
-        return s_t, a_t, r_t, minimize, loss_total, loss_policy, loss_value, entropy, advantage, tf.stop_gradient(advantage)
+        return s_t, a_t, r_t, minimize
 
     def optimize(self):
-        # print('here')
         if len(self.train_queue[0]) < MIN_BATCH:
             time.sleep(0)  # yield
-            # print('1')
             return
 
         with self.lock_queue:
             if len(self.train_queue[0]) < MIN_BATCH:  # more thread could have passed without lock
-                # print('2')
                 return                                  # we can't yield inside lock
 
             s, a, r, s_, s_mask = self.train_queue
@@ -137,17 +132,11 @@ class Brain:
         if len(s) > 5 * MIN_BATCH:
             print("Optimizer alert! Minimizing batch of %d" % len(s))
 
-        v_ = self.predict_v(s_)
-        v = r + GAMMA_N * v_ * s_mask  # set v to 0 where s_ is terminal state
+        v = self.predict_v(s_)
+        r = r + GAMMA_N * v * s_mask  # set v to 0 where s_ is terminal state
 
-        s_t, a_t, r_t, minimize, loss_total, loss_policy, loss_value, entropy, advantage, grad = self.graph
-        loss, _, loss_policy, loss_value, entropy, advantage, grad = self.session.run([loss_total, minimize, loss_policy, loss_value, entropy, advantage, grad], feed_dict={s_t: s, a_t: a, r_t: v})
-        print("Total loss:" + str(loss))
-        # print("Loss_policy:" + str(loss_policy))
-        # print("Loss_value:" + str(loss_value))
-        # print("Entropy:" + str(entropy))
-        # print("Advantage:" + str(advantage))
-        # print("Stop_gradien:" + str(grad))
+        s_t, a_t, r_t, minimize = self.graph
+        self.session.run(minimize, feed_dict={s_t: s, a_t: a, r_t: r})
 
     def train_push(self, s, a, r, s_):
         with self.lock_queue:
@@ -156,12 +145,10 @@ class Brain:
             self.train_queue[2].append(r)
 
             if s_ is None:
-                self.train_queue[3].append(np.array(NONE_STATE))
-                # print('1', np.array(NONE_STATE).shape)
+                self.train_queue[3].append(NONE_STATE)
                 self.train_queue[4].append(0.)
             else:
-                self.train_queue[3].append(np.array(s_))
-                # print('2', np.array(s_).shape)
+                self.train_queue[3].append(s_)
                 self.train_queue[4].append(1.)
 
     def predict(self, s):
@@ -205,10 +192,12 @@ class Agent:
         else:
             return self.eps_start + frames * (self.eps_end - self.eps_start) / self.eps_steps  # linearly interpolate
 
-    def act(self, s, render=False):
+    def act(self, s, render=True):
         eps = self.getEpsilon()
         global frames
         frames = frames + 1
+        # print(s.reshape((3, 12, 12)))
+        # return 17
 
         if random.random() < eps:
             return random.randint(0, NUM_ACTIONS - 1)
@@ -285,14 +274,15 @@ class Environment(threading.Thread):
             if self.render:
                 self.env.render()
             # print(len(self.agent.train_queue))  # CHECK memory leak
-            s = s.reshape(-1, 4, 4, 3)
+            s = s.reshape(-1, 8, 8, 3)
             a = self.agent.act(s)
             #     a = self.agent.act(s, True)
             # else:
             #     a = self.agent.act(s, True)
             # s_, r, done, info = self.env.step(a)
             s_, r, done = self.env.step(a)
-            s_ = s_.reshape(-1, 4, 4, 3)
+            print("Reward: " + str(r))
+            s_ = s_.reshape(-1, 8, 8, 3)
             if done:  # terminal state
                 s_ = None
 
@@ -331,12 +321,12 @@ class Optimizer(threading.Thread):
 
 
 #-- main
-# env_test = Environment(render=True, eps_start=0., eps_end=0.)
+env_test = Environment(render=True, eps_start=0., eps_end=0.)
 # NUM_STATE = env_test.env.observation_space.shape[0]
 # NUM_ACTIONS = env_test.env.action_space.n
-NUM_STATE = 34
-NUM_ACTIONS = 32
-NONE_STATE = np.zeros((1, 4, 4, 3))
+NUM_STATE = 192
+NUM_ACTIONS = 128
+NONE_STATE = np.zeros((3, 8, 8))
 # brain = Brain(0)
 
 brain = Brain(1)  # brain is global in A3C
@@ -352,9 +342,6 @@ for e in envs:
 
 time.sleep(RUN_TIME)
 
-brain.save_weights()
-print("Saved weights")
-
 for e in envs:
     e.stop()
 for e in envs:
@@ -365,8 +352,8 @@ for o in opts:
 for o in opts:
     o.join()
 
-
+# brain.save_weights()
 print("Training check_point\n_________________________________________________________________")
-# env_test.start()
-# time.sleep(2)
-# env_test.stop()
+env_test.start()
+time.sleep(2)
+env_test.stop()

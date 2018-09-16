@@ -21,7 +21,7 @@ from keras.layers import *
 from keras import backend as K
 # from collections import deque
 
-import environment4 as ev
+import environment4_2 as ev
 #-- constants
 ENV = 'CartPole-v0'
 
@@ -197,6 +197,7 @@ class Agent:
         global frames
         frames = frames + 1
         # print(s.reshape((3, 12, 12)))
+        # return 17
 
         if random.random() < eps:
             return random.randint(0, NUM_ACTIONS - 1)
@@ -280,6 +281,7 @@ class Environment(threading.Thread):
             #     a = self.agent.act(s, True)
             # s_, r, done, info = self.env.step(a)
             s_, r, done = self.env.step(a)
+            print("Reward: " + str(r))
             s_ = s_.reshape(-1, 4, 4, 3)
             if done:  # terminal state
                 s_ = None

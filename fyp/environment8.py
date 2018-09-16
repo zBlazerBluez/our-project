@@ -1,8 +1,8 @@
 import random
 import numpy as np
 
-ROW_SIZE = 12
-COL_SIZE = 12
+ROW_SIZE = 8
+COL_SIZE = 8
 SQUARE = 0
 RECT = 1
 HORIZONTAL = 0
@@ -11,13 +11,13 @@ SQUARE = [[1 for _ in range(2)] for _ in range(2)]
 RECT_VER = [[1 for _ in range(2)] for _ in range(4)]
 RECT_HOR = [[1 for _ in range(4)] for _ in range(2)]
 ACTION_DICT = {row * COL_SIZE + col: (row, col) for row in range(ROW_SIZE) for col in range(COL_SIZE)}
-NUM_STATE = 432  # to change
-NUM_ACTION = 288
+NUM_STATE = 3 * 8 * 8  # to change
+NUM_ACTION = 2 * 8 * 8
 
 
 class Board(object):
-    ROW_SIZE = 12
-    COL_SIZE = 12
+    ROW_SIZE = 8
+    COL_SIZE = 8
     HORIZONTAL = 0
     VERTICAL = 1
 
@@ -33,9 +33,9 @@ class Board(object):
 
     def display(self):
         # for layer in range(self.num_layer + 1):
-        # 	for row in range(self.ROW_SIZE):
-        # 		print(self.data[layer][row])
-        # 	print('')
+        #   for row in range(self.ROW_SIZE):
+        #       print(self.data[layer][row])
+        #   print('')
         for row in range(self.ROW_SIZE):
             for layer in range(self.num_layer):
                 print(self.data[layer][row], end='')
@@ -127,11 +127,11 @@ class Board(object):
         for j in range(self.ROW_SIZE):
             for k in range(self.COL_SIZE):
                 if self.data[self.num_layer - 1][j][k] == 1:
-                    if (j < 6):
+                    if (j < 4):
                         up += 1
                     else:
                         down += 1
-                    if (k < 6):
+                    if (k < 4):
                         left += 1
                     else:
                         right += 1
@@ -147,7 +147,7 @@ class Environment(object):
         self.NUM_ACTION = NUM_ACTION
         self.NUM_STATE = NUM_STATE
         self.action_space = [x for x in range(self.NUM_ACTION)]
-        self.queue = [(3, 3),(3, 3), (3, 3), (6, 3), (6, 3), (9, 3), (12, 3), (6, 6), (9, 6)]
+        self.queue = [(2, 2),(2, 2), (2, 2), (4, 2), (4, 2), (6, 2), (8, 2), (4, 4), (6, 4)]
         # self.board = Board()
         # self.num_square = random.randint(1,19)
         # self.num_rect = 20 - num_square
@@ -156,7 +156,7 @@ class Environment(object):
 
     def reset(self):
         self.board = Board()
-        self.queue = [(3, 3), (3, 3), (3, 3), (6, 3), (6, 3), (9, 3), (12, 3), (6, 6), (9, 6)]
+        self.queue = [(2, 2),(2, 2), (2, 2), (4, 2), (4, 2), (6, 2), (8, 2), (4, 4), (6, 4)]
         #print('There are %d quares and %d rectangulars' %(self.num_square, self.num_rect))
         return self.get_current_state()
 
