@@ -4,20 +4,23 @@ import numpy as np
 ROW_SIZE = 8
 COL_SIZE = 8
 SQUARE = 0
-RECT = 1
-HORIZONTAL = 0
-VERTICAL = 1
+# RECT = 1
+# HORIZONTAL = 0
+# VERTICAL = 1
 SQUARE = [[1 for _ in range(2)] for _ in range(2)]
 RECT_VER = [[1 for _ in range(2)] for _ in range(4)]
 RECT_HOR = [[1 for _ in range(4)] for _ in range(2)]
 ACTION_DICT = {row * COL_SIZE + col: (row, col) for row in range(ROW_SIZE) for col in range(COL_SIZE)}
-NUM_STATE = 8 * 8 * 2 + 2
+
+NUM_STATE = 8 * 8 * 3
 NUM_ACTION = 8 * 8 * 2
 
 
 class Board(object):
     ROW_SIZE = 8
     COL_SIZE = 8
+    SQUARE = 0
+    RECT = 1
     HORIZONTAL = 0
     VERTICAL = 1
 
@@ -36,9 +39,16 @@ class Board(object):
         #   for row in range(self.ROW_SIZE):
         #       print(self.data[layer][row])
         #   print('')
+        # for row in range(self.ROW_SIZE):
+        #     for layer in range(self.num_layer):
+        #         print(self.data[layer][row], end='')
+        #     print('')
         for row in range(self.ROW_SIZE):
             for layer in range(self.num_layer):
-                print(self.data[layer][row], end='')
+                print('[', end='')
+                for col in range(self.COL_SIZE):
+                    print(self.data[layer][row][col], end='')
+                print(']', end='')
             print('')
 
     def get(self, layer, row, col):
@@ -61,22 +71,9 @@ class Board(object):
         else:
             layer2 = np.array(self.get_layer(self.num_layer - 2))
         ob = np.zeros((3, self.ROW_SIZE, self.COL_SIZE))
-        ob[0,:,:] = layer1
-        ob[1,:,:] = layer2
+        ob[0] = layer1
+        ob[1] = layer2
         return ob
-
-        # looking at highest layer
-        # for i in range(self.ROW_SIZE):
-        #     for j in range(self.COL_SIZE):
-        #         vectorized_list.append(self.data[self.num_layer - 1][i][j])
-        # if self.num_layer == 1:
-        #     for _ in range(self.ROW_SIZE * self.COL_SIZE):
-        #         vectorized_list.append(0)
-        # else:
-        #     for i in range(self.ROW_SIZE):
-        #         for j in range(self.COL_SIZE):
-        #             vectorized_list.append(self.data[self.num_layer - 2][i][j])
-        # return vectorized_list
 
     def check_collide(self, block, position, layer):
         x, y = position
@@ -113,7 +110,7 @@ class Board(object):
         return guided_punishment
 
     def compute_reward(self):
-        reward = 1000
+        reward = 100
         # for layers other than latest one:
         for i in range(self.num_layer - 1):
             for j in range(self.ROW_SIZE):
@@ -127,11 +124,11 @@ class Board(object):
         for j in range(self.ROW_SIZE):
             for k in range(self.COL_SIZE):
                 if self.data[self.num_layer - 1][j][k] == 1:
-                    if (j < 4):
+                    if (j < self.ROW_SIZE / 2):
                         up += 1
                     else:
                         down += 1
-                    if (k < 4):
+                    if (k < self.COL_SIZE / 2):
                         left += 1
                     else:
                         right += 1
@@ -148,11 +145,6 @@ class Environment(object):
         self.NUM_STATE = NUM_STATE
         self.action_space = [x for x in range(self.NUM_ACTION)]
         self.queue = [(2, 2), (2, 2), (2, 2), (4, 2), (4, 2), (6, 2), (8, 2), (4, 4), (6, 4)]
-        # self.board = Board()
-        # self.num_square = random.randint(1,19)
-        # self.num_rect = 20 - num_square
-        # print('There are %d quares and %d rectangulars' %self.num_square %self.num_rect)
-        # self.batch_remaining = 4
 
     def reset(self):
         self.board = Board()
@@ -170,9 +162,6 @@ class Environment(object):
             for i in range(self.queue[-1][0]):
                 for j in range(self.queue[-1][1]):
                     last_layer[i][j] = 1
-        # else:
-        #     observation.append(-1)
-        #     observation.append(-1)
         observation[2] = last_layer
         return observation
 
@@ -182,29 +171,20 @@ class Environment(object):
         check = 0
         current_state = self.get_current_state()
         pos_x, pos_y = ACTION_DICT[action % len(ACTION_DICT)]
-
+        # print("pos_x, pos_y: " + str(pos_x) + str(pos_y))
         if action < len(ACTION_DICT):
             x, y = self.queue[-1]
         else:
             y, x = self.queue[-1]
-
+        # print("x, y: " + str(x) + str(y))
         block = [[1 for _ in range(x)] for _ in range(y)]
         position = (pos_x, pos_y)
-        # print("Chosen placing (%d,%d) at %d, %d", x, y, pos_x, pos_y)
 
-        # if block == SQUARE:
-        #     if self.num_square == 0:
-        #         # reward = -20
-        #         return (current_state, reward, done)
-        #     else:
-        #         self.num_square -= 1
-        # else:
-        #     if self.num_rect == 0:
-        #         # reward = -20
-        #         return (current_state, reward, done)
-        #     else:
-        #         self.num_rect -= 1
         if pos_x + len(block) > COL_SIZE or pos_y + len(block[0]) > ROW_SIZE:
+            print("Warning, invalid move chosen")
+            print(block)
+            print("pos_x:" + str(pos_x) + "\tlen_x:" + str(len(block)))
+            print("pos_y:" + str(pos_y) + "\tlen_y:" + str(len(block[0])))
             return (current_state, -10, done)
         self.queue.pop()
         # print('popped')

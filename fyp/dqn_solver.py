@@ -66,6 +66,7 @@ class DeepQLearningAgent:
         #     y[action] = reward if done else reward + self.gamma * np.max(self.model.predict(next_state)[0])
         #     x_batch.append(state[0])
         #     y_batch.append(y)
+        # print(np.array(x_batch).shape)
         self.model.fit(np.array(x_batch), np.array(y_batch), batch_size=len(x_batch), verbose=0)
         if self.epsilon > self.epsilon_min:
             self.epsilon *= self.epsilon_decay
@@ -75,7 +76,7 @@ class DeepQLearningAgent:
 
 
 if __name__ == '__main__':
-    NUM_EPISODE = 500001
+    NUM_EPISODE = 50
     MAX_FRAME = 50
 
     f = open('logs/updated_rule.txt', 'w')

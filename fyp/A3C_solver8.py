@@ -35,8 +35,8 @@ GAMMA = 0.99
 N_STEP_RETURN = 4
 GAMMA_N = GAMMA ** N_STEP_RETURN
 
-EPS_START = 0.6
-EPS_STOP = .2
+EPS_START = 0
+EPS_STOP = 0
 EPS_STEPS = 7500
 
 MIN_BATCH = 32
@@ -330,7 +330,7 @@ class Optimizer(threading.Thread):
 # env_test = Environment(render=True, eps_start=0., eps_end=0.)
 # NUM_STATE = env_test.env.observation_space.shape[0]
 # NUM_ACTIONS = env_test.env.action_space.n
-NUM_STATE = 192
+NUM_STATE = 130
 NUM_ACTIONS = 128
 NONE_STATE = np.zeros((1, 8, 8, 3))
 # brain = Brain(0)

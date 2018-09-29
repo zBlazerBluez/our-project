@@ -26,7 +26,7 @@ import environment8 as ev
 ENV = 'CartPole-v0'
 
 RUN_TIME = 2
-THREADS = 8
+THREADS = 1
 OPTIMIZERS = 2
 THREAD_DELAY = 0.001
 
@@ -192,7 +192,7 @@ class Agent:
         else:
             return self.eps_start + frames * (self.eps_end - self.eps_start) / self.eps_steps  # linearly interpolate
 
-    def act(self, s, render=True):
+    def act(self, s, render=False):
         eps = self.getEpsilon()
         global frames
         frames = frames + 1
@@ -266,6 +266,9 @@ class Environment(threading.Thread):
 
     def runEpisode(self):
         s = self.env.reset()
+        s = s.reshape(-1, 8, 8, 3)
+        s_p = s.reshape(3,8,8)
+        print(s_p)
 
         R = 0
         while True:
@@ -324,8 +327,8 @@ class Optimizer(threading.Thread):
 env_test = Environment(render=True, eps_start=0., eps_end=0.)
 # NUM_STATE = env_test.env.observation_space.shape[0]
 # NUM_ACTIONS = env_test.env.action_space.n
-NUM_STATE = 192
-NUM_ACTIONS = 128
+NUM_STATE = 8 * 8 * 2 + 2
+NUM_ACTIONS = 8 * 8 * 2
 NONE_STATE = np.zeros((3, 8, 8))
 # brain = Brain(0)
 
