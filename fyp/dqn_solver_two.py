@@ -13,40 +13,44 @@ from keras.optimizers import Adam
 class DeepQLearningAgent:
 
     def __init__(self, env):
+        self.NUM_ACTION = 128
+        self.NUM_STATE = 192
+        self.NUM_STATE_ACTION = 193
         self.env = env
-        self.memory = deque(maxlen=10)
-        self.batch_size = 128
+        self.memory = deque(maxlen=1000)
+        self.batch_size = 10
         self.gamma = 0.95
-        self.epsilon = 1
+        self.epsilon = 0.5
         self.epsilon_min = 0.05
         # self.epsilon_decay = 0.99998    #for 2M ep batch
         self.epsilon_decay = 0.99998  # for 1k ep batch
         self.alpha = 0.01
         self.alpha_decay = 0.01
+        self.learning_rate = 0.9
 
         # Deep QLearning model.
         self.model = Sequential()
-        self.model.add(Dense(64, input_dim=193, activation='relu'))  # ROW_SIZE*COL_SIZE*2+1 (first 2 layers and action)
+        self.model.add(Dense(64, input_dim=self.NUM_STATE_ACTION, activation='relu'))  # ROW_SIZE*COL_SIZE*2+1 (first 2 layers and action)
         self.model.add(Dense(64, activation='relu'))
         self.model.add(Dense(1, activation='linear'))
 
-        self.model.compile(loss='mse', optimizer=Adam(lr=self.alpha, decay=self.alpha_decay))
+        self.model.compile(loss='mse', optimizer=Adam())
         self.model = load_model('trained_models/8x8_two.h5')
 
     def remember(self, state, action, reward, next_state, done, value=0):
-        self.memory.append([state, action, reward, next_state, done, value])
+        self.memory.append([state, action, reward, next_state, done])
 
-    def update_value(self, i_step):
-        self.memory[-1][5] = self.memory[-1][2]
-        for i in range(1, i_step):
-            self.memory[-i - 1][5] = self.memory[-i - 1][2] + self.gamma * self.memory[-i][5]
+    # def update_value(self, i_step):
+    #     self.memory[-1][5] = self.memory[-1][2]
+    #     for i in range(1, i_step):
+    #         self.memory[-i - 1][5] = self.memory[-i - 1][2] + self.gamma * self.memory[-i][5]
 
     def preprocess_state(self, state):
         return np.reshape(state, (3, 8, 8))
 
-    def act(self, state):
-        lis = []
-        for action in range(0, 128):
+    def action_filter(self, state):
+        action_list = []
+        for action in range(self.NUM_ACTION):
             i = 0
             flag = 0
             row = action % 8
@@ -64,51 +68,65 @@ class DeepQLearningAgent:
                 j += 1
             if flag == 1:
                 continue
-            lis.append(action)
+            action_list.append(action)
+        return action_list
+
+    def best_action(self, state, actions):
+        action = 0
+        state_action = np.reshape(np.append(state.flatten(), action), [1, self.NUM_STATE_ACTION])
+        # print(state_action.shape)
+        value = self.model.predict(state_action)
+        max_value = value
+        max_action = action
+
+        # print(state)
+        # print("action:" + str(action) + "\tvalue:" + str(value))
+        for action in actions:
+            state_action = np.reshape(np.append(state.flatten(), action), [1, self.NUM_STATE_ACTION])
+            value = self.model.predict(state_action)
+            # print("action:" + str(action) + "\tvalue:" + str(value))
+            if value > max_value:
+                max_value = value
+                max_action = action
+        return max_action, max_value
+
+    def act(self, state):
+        actions = self.action_filter(state)
         if np.random.random() <= self.epsilon:
             # Explore.
             # action = self.env.action_space.sample()
-            max_action = np.random.choice(lis)
+            max_action = np.random.choice(actions)
         else:
             # Exploit.
-            action = 0
-            state_action = np.reshape(np.append(state.flatten(), action), [1, 193])
-            # print(state_action.shape)
-            value = self.model.predict(state_action)
-            max_value = value
-            max_action = action
-
-            # print(state)
-            # print("action:" + str(action) + "\tvalue:" + str(value))
-            for action in lis:  # 8*8*2
-                state_action = np.reshape(np.append(state.flatten(), action), [1, 193])
-                value = self.model.predict(state_action)
-                # print("action:" + str(action) + "\tvalue:" + str(value))
-                if value > max_value:
-                    max_value = value
-                    max_action = action
+            max_action, max_value = self.best_action(state, actions)
             # print("len: " + str(len(lis)) + "\tlist: " + str(lis))
             # print("Action chosen:" + str(max_action))
         return max_action
 
     def learn(self, i_step):
         # minibatch = random.sample(self.memory, min(self.batch_size, len(self.memory)))
-        state, action, reward, next_state, done, value = self.memory[-1]
+        state, action, reward, next_state, done = self.memory[-1]
         x_batch, y_batch = [], []
         mean = 0
-        for i in range(i_step):
-            state, action, reward, next_state, done, value = self.memory[-i - 1]
+        indexes = random.sample(list(range(len(self.memory))), self.batch_size if self.batch_size < len(self.memory) else len(self.memory))
+        for i in indexes:
+            state, action, reward, next_state, done = self.memory[-i - 1]
             state_action = np.append(state.flatten(), action)
+            next_actions = self.action_filter(next_state)
+            _, max_value = self.best_action(state, next_actions)
+            predicted_value = self.model.predict(np.reshape(state_action, [1, self.NUM_STATE_ACTION]))
+            value = (1 - self.learning_rate) * predicted_value + self.learning_rate * (reward + self.gamma * max_value)
             x_batch.append(state_action)
-            y_batch.append(value)
-            mean += (value - self.model.predict(np.reshape(state_action, [1, 193]))) ** 2
+            y_batch.append(value[0])
+            mean += (value - predicted_value) ** 2
         # for state, action, reward, next_state, done in minibatch:
         #     y = self.model.predict(state)[0]
         #     y[action] = reward if done else reward + self.gamma * np.max(self.model.predict(next_state)[0])
         #     x_batch.append(state[0])
         #     y_batch.append(y)
         mean = mean / 9
-        print("Current mean square error: %.2f" %(mean) )
+        print("Current mean square error: %.2f" % (mean))
+        # print(np.array(y_batch).shape)
         self.model.fit(np.array(x_batch), np.array(y_batch), batch_size=len(x_batch), verbose=0)
         if self.epsilon > self.epsilon_min:
             self.epsilon *= self.epsilon_decay
@@ -146,10 +164,10 @@ if __name__ == '__main__':
             if i_step > MAX_FRAME:
                 reward = -10000
                 done = True
-        agent.update_value(i_step)
+        # agent.update_value(i_step)
         agent.learn(i_step)
         running_reward = running_reward * 0.95 + sum_reward * 0.05
-        if i_episode % 1 == 0:
+        if i_episode % 100 == 0:
             print('episode %d i_step %d reward %d sum_reward %d running_reward %f epsilon %.2f' % (i_episode, i_step, reward, sum_reward, running_reward, agent.epsilon))
             f.write('%d, %d, %d \n' % (sum_reward, running_reward, agent.epsilon))
             agent.save_model()
