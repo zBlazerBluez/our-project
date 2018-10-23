@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-from environment_two import *
+from environment_four import *
 import numpy as np
 import gym
 import random
@@ -20,10 +20,10 @@ class DeepQLearningAgent:
         self.memory = deque(maxlen=1000)
         self.batch_size = 10
         self.gamma = 0.95
-        self.epsilon = 0.5
-        self.epsilon_min = 0.05
+        self.epsilon = 0.8
+        self.epsilon_min = 0
         # self.epsilon_decay = 0.99998    #for 2M ep batch
-        self.epsilon_decay = 0.99998  # for 1k ep batch
+        self.epsilon_decay = 0.99999  # for 1k ep batch
         self.alpha = 0.01
         self.alpha_decay = 0.01
         self.learning_rate = 0.9
@@ -35,7 +35,7 @@ class DeepQLearningAgent:
         self.model.add(Dense(1, activation='linear'))
 
         self.model.compile(loss='mse', optimizer=Adam())
-        self.model = load_model('trained_models/8x8_three.h5')
+        self.model = load_model('trained_models/8x8_four.h5')
 
     def remember(self, state, action, reward, next_state, done, value=0):
         self.memory.append([state, action, reward, next_state, done])
@@ -127,7 +127,7 @@ class DeepQLearningAgent:
                 value = value[0]
             x_batch.append(state_action)
             y_batch.append(value)
-            mean += (value - predicted_value) ** 2
+            mean += ((value - predicted_value) ** 2)
         # for state, action, reward, next_state, done in minibatch:
         #     y = self.model.predict(state)[0]
         #     y[action] = reward if done else reward + self.gamma * np.max(self.model.predict(next_state)[0])
@@ -141,14 +141,14 @@ class DeepQLearningAgent:
             self.epsilon *= self.epsilon_decay
 
     def save_model(self):
-        self.model.save('trained_models/8x8_three.h5')
+        self.model.save('trained_models/8x8_four.h5')
 
 
 if __name__ == '__main__':
     NUM_EPISODE = 100000
     MAX_FRAME = 10
 
-    f = open('logs/8x8_three.txt', 'w')
+    f = open('logs/8x8_four.txt', 'a')
 
     env = Environment()
     agent = DeepQLearningAgent(env)

@@ -20,21 +20,14 @@ class DeepQLearningAgent:
         self.memory = deque(maxlen=1000)
         self.batch_size = 10
         self.gamma = 0.95
-        self.epsilon = 0.5
-        self.epsilon_min = 0.05
+        self.epsilon = 0
+        self.epsilon_min = 0
         # self.epsilon_decay = 0.99998    #for 2M ep batch
         self.epsilon_decay = 0.99998  # for 1k ep batch
         self.alpha = 0.01
         self.alpha_decay = 0.01
         self.learning_rate = 0.9
 
-        # Deep QLearning model.
-        self.model = Sequential()
-        self.model.add(Dense(64, input_dim=self.NUM_STATE_ACTION, activation='relu'))  # ROW_SIZE*COL_SIZE*2+1 (first 2 layers and action)
-        self.model.add(Dense(64, activation='relu'))
-        self.model.add(Dense(1, activation='linear'))
-
-        self.model.compile(loss='mse', optimizer=Adam())
         self.model = load_model('trained_models/8x8_three.h5')
 
     def remember(self, state, action, reward, next_state, done, value=0):
@@ -83,12 +76,12 @@ class DeepQLearningAgent:
         max_value = value
         max_action = action
 
-        # print(state)
+        print(state[:3])
         # print("action:" + str(action) + "\tvalue:" + str(value))
         for action in actions:
             state_action = np.reshape(np.append(state.flatten(), action), [1, self.NUM_STATE_ACTION])
             value = self.model.predict(state_action)
-            # print("action:" + str(action) + "\tvalue:" + str(value))
+            print("action:" + str(action) + "\tvalue:" + str(value))
             if value > max_value:
                 max_value = value
                 max_action = action
@@ -145,10 +138,8 @@ class DeepQLearningAgent:
 
 
 if __name__ == '__main__':
-    NUM_EPISODE = 100000
+    NUM_EPISODE = 5
     MAX_FRAME = 10
-
-    f = open('logs/8x8_three.txt', 'w')
 
     env = Environment()
     agent = DeepQLearningAgent(env)
@@ -164,6 +155,7 @@ if __name__ == '__main__':
             # print(state.shape)
             action = agent.act(state)
             next_state, reward, done = env.step(action)
+            print("Reward: " + str(reward))
             next_state = agent.preprocess_state(next_state)
             agent.remember(state, action, reward, next_state, done)
             state = next_state
@@ -175,8 +167,4 @@ if __name__ == '__main__':
                 done = True
         agent.learn(i_step)
         running_reward = running_reward * 0.95 + sum_reward * 0.05
-        if i_episode % 10 == 0:
-            print('episode %d i_step %d reward %d sum_reward %d running_reward %f epsilon %.2f' % (i_episode, i_step, reward, sum_reward, running_reward, agent.epsilon))
-            f.write('%d, %d, %d \n' % (sum_reward, running_reward, agent.epsilon))
-            agent.save_model()
-    f.close()
+        print('episode %d i_step %d reward %d sum_reward %d running_reward %f epsilon %.2f' % (i_episode, i_step, reward, sum_reward, running_reward, agent.epsilon))

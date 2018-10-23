@@ -53,12 +53,8 @@ class DeepQLearningAgent:
         for action in range(self.NUM_ACTION):
             i = 0
             flag = 0
-            if action < 8 * 8:
-                row = action % 8
-                col = action // 8
-            else:
-                col = (action - 64) % 8
-                row = (action - 64) // 8
+            row = action % 8
+            col = action // 8
             while (i < 8 and state[-1, 0, i] == 1):
                 if (action < 64 and col + i > 7) or (action >= 64 and row + i > 7):
                     flag = 1
@@ -133,7 +129,7 @@ class DeepQLearningAgent:
         #     y[action] = reward if done else reward + self.gamma * np.max(self.model.predict(next_state)[0])
         #     x_batch.append(state[0])
         #     y_batch.append(y)
-        mean = mean / self.batch_size
+        mean = mean / 9
         print("Current mean square error: %.2f" % (mean))
         # print(np.array(y_batch).shape)
         self.model.fit(np.array(x_batch), np.array(y_batch), batch_size=len(x_batch), verbose=0)
@@ -173,6 +169,7 @@ if __name__ == '__main__':
             if i_step > MAX_FRAME:
                 reward = -10000
                 done = True
+        # agent.update_value(i_step)
         agent.learn(i_step)
         running_reward = running_reward * 0.95 + sum_reward * 0.05
         if i_episode % 10 == 0:

@@ -164,7 +164,7 @@ class Environment(object):
         done = 0
         check = 0
         current_state = self.get_current_state()
-        pos_x, pos_y = ACTION_DICT[action % len(ACTION_DICT)]
+        # pos_x, pos_y = ACTION_DICT[action % len(ACTION_DICT)]
         if action < 8 * 8:
             row = action % 8
             col = action // 8
