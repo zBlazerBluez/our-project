@@ -165,25 +165,17 @@ class Environment(object):
         check = 0
         current_state = self.get_current_state()
         pos_x, pos_y = ACTION_DICT[action % len(ACTION_DICT)]
-        if action < 8 * 8:
-            row = action % 8
-            col = action // 8
-        else:
-            col = (action - 64) % 8
-            row = (action - 64) // 8
-        pos_x = row
-        pos_y = col
         # print("pos_x, pos_y: " + str(pos_x) + str(pos_y))
-        if action < 64:
+        if action < len(ACTION_DICT):
             x, y = self.queue[-1]
         else:
             y, x = self.queue[-1]
         # print("x, y: " + str(x) + str(y))
-        block = [[1 for _ in range(y)] for _ in range(x)]
+        block = [[1 for _ in range(x)] for _ in range(y)]
         position = (pos_x, pos_y)
 
         if pos_x + len(block) > COL_SIZE or pos_y + len(block[0]) > ROW_SIZE:
-            print("Warning, invalid move chosen. action chosen:" + str(action))
+            print("Warning, invalid move chosen")
             print(block)
             print("pos_x:" + str(pos_x) + "\tlen_x:" + str(len(block)))
             print("pos_y:" + str(pos_y) + "\tlen_y:" + str(len(block[0])))
