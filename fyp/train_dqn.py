@@ -20,7 +20,7 @@ class DeepQLearningAgent:
         self.memory = deque(maxlen=200)
         self.batch_size = 12
         self.gamma = 0.95
-        self.epsilon = 0
+        self.epsilon = 0.8
         self.epsilon_min = 0
         # self.epsilon_decay = 0.99998    #for 2M ep batch
         self.epsilon_decay = 0.99999  # for 1k ep batch
